@@ -1096,3 +1096,91 @@ int hook_missing_hooks(HMODULE module_handle)
     log_debug("Finished missing hooks @ %p\n", module_handle);
     return 0;
 }
+
+void apiminer_inject_process(HANDLE hProcess)
+{
+    SIZE_T apiminer_bytes_written;
+    LPVOID apiminer_injection_addr;
+    char apiminer_injector_cli[512];
+    FARPROC apiminer_loadlibrary_address;
+    DWORD apiminer_dwThreadId;
+    HANDLE apiminer_hThread;
+
+    apiminer_injection_addr = VirtualAllocEx(hProcess,
+                                           NULL, 4096,
+                                           MEM_COMMIT, PAGE_READWRITE);
+    _snprintf_s(apiminer_injector_cli,
+                sizeof(apiminer_injector_cli)/sizeof(apiminer_injector_cli[0]),
+                _TRUNCATE,
+                g_apiminer_monitor_module_path);
+    WriteProcessMemory(hProcess,
+                       apiminer_injection_addr,
+                       apiminer_injector_cli,
+                       strlen(apiminer_injector_cli),
+                       &apiminer_bytes_written);
+
+    apiminer_loadlibrary_address = GetProcAddress(LoadLibrary("kernel32"), "LoadLibraryA");
+    apiminer_hThread = CreateRemoteThread(hProcess,
+                                 NULL, /* security attributes */
+                                 0, /* default stack size */
+                                 (LPTHREAD_START_ROUTINE)apiminer_loadlibrary_address,
+                                 apiminer_injection_addr,
+                                 0,
+                                 &apiminer_dwThreadId);
+    if (apiminer_hThread != NULL) {
+        WaitForSingleObject(apiminer_hThread, INFINITE);
+    }
+
+    VirtualFreeEx(hProcess,
+                  apiminer_injection_addr, 4096, MEM_RELEASE);
+
+    return;
+}
+
+void apiminer_inject_process_pid(DWORD pid)
+{
+    HANDLE hProcess;
+    SIZE_T apiminer_bytes_written;
+    LPVOID apiminer_injection_addr;
+    char apiminer_injector_cli[512];
+    FARPROC apiminer_loadlibrary_address;
+    DWORD apiminer_dwThreadId;
+    HANDLE apiminer_hThread;
+
+    return;
+
+    hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+    if (hProcess == NULL) {
+        return;
+    }
+
+    apiminer_injection_addr = VirtualAllocEx(hProcess,
+                                           NULL, 4096,
+                                           MEM_COMMIT, PAGE_READWRITE);
+    _snprintf_s(apiminer_injector_cli,
+                sizeof(apiminer_injector_cli)/sizeof(apiminer_injector_cli[0]),
+                _TRUNCATE,
+                g_apiminer_monitor_module_path);
+    WriteProcessMemory(hProcess,
+                       apiminer_injection_addr,
+                       apiminer_injector_cli,
+                       strlen(apiminer_injector_cli),
+                       &apiminer_bytes_written);
+
+    apiminer_loadlibrary_address = GetProcAddress(LoadLibrary("kernel32"), "LoadLibraryA");
+    apiminer_hThread = CreateRemoteThread(hProcess,
+                                 NULL, /* security attributes */
+                                 0, /* default stack size */
+                                 (LPTHREAD_START_ROUTINE)apiminer_loadlibrary_address,
+                                 apiminer_injection_addr,
+                                 0,
+                                 &apiminer_dwThreadId);
+    if (apiminer_hThread != NULL) {
+        WaitForSingleObject(apiminer_hThread, INFINITE);
+    }
+
+    VirtualFreeEx(hProcess,
+                  apiminer_injection_addr, 4096, MEM_RELEASE);
+
+    return;
+}
